@@ -55,8 +55,8 @@ class RandomNumberGenerator:
 
         self.norm = 2.328306549295728e-10  # 1.0/(m1+1)
         self.norm2 = 2.328318825240738e-10  # 1.0/(m2+1)
-        self.m1 = 4294967087.0
-        self.m2 = 4294944443.0
+        self.m1 = 4294967087
+        self.m2 = 4294944443
 
     def lcgrand(self, stream):
         zi = self.zrng[stream]
@@ -88,26 +88,15 @@ class RandomNumberGenerator:
         self.drng[stream, :6] = seed[:6]
 
     def mrand(self, stream):
-        print(f"drng shape: {self.drng.shape}")
-        s10, s11, s12 = self.drng[stream, :3]
-        s20, s21, s22 = self.drng[stream, 3:6]
-        print(f"s10: {s10}, s11: {s11}, s12: {s12}, s20: {s20}, s21: {s21}, s22: {s22}")
+        s10, s11, s12 = map(int, self.drng[stream, :3])
+        s20, s21, s22 = map(int, self.drng[stream, 3:6])
 
-        p = 1403580.0 * s11 - 810728.0 * s10
-        k = int(p / self.m1)
-        p = p - k * self.m1
-
-        if p < 0.0:
-            p += self.m1
+        # Keep the recurrence in integer arithmetic to avoid rounding the state.
+        p = (1403580 * s11 - 810728 * s10) % self.m1
 
         s10, s11, s12 = s11, s12, p
 
-        p = 527612.0 * s22 - 1370589.0 * s20
-        k = int(p / self.m2)
-        p = p - k * self.m2
-
-        if p < 0.0:
-            p += self.m2
+        p = (527612 * s22 - 1370589 * s20) % self.m2
 
         s20, s21, s22 = s21, s22, p
 
@@ -122,8 +111,9 @@ class RandomNumberGenerator:
     def mrandgt(self, seed, stream):
         seed[:6] = self.drng[stream, :6]
 
-# Testing the class
-rng = RandomNumberGenerator()
-print(rng.lcgrand(1))
-print(rng.expon(1.0))
-print(rng.mrand(1))
+if __name__ == "__main__":
+    rng = RandomNumberGenerator()
+    print(f"LCG sample: {rng.lcgrand(1):.8f}")
+    print(f"Exponential sample: {rng.expon(1.0):.8f}")
+    print(f"MRG sample: {rng.mrand(1):.8f}")
+

@@ -1,5 +1,5 @@
 import math
-import random
+import argparse
 
 class SingleServerQueue:
     Q_LIMIT = 100
@@ -9,7 +9,13 @@ class SingleServerQueue:
     MULT1 = 24112
     MULT2 = 26143
 
-    def __init__(self, mean_interarrival, mean_service, num_delays_required):
+    def __init__(self, mean_interarrival, mean_service, num_delays_required, seed=None):
+        if mean_interarrival <= 0 or mean_service <= 0:
+            raise ValueError("Mean interarrival and service times must be positive")
+        if num_delays_required < 1:
+            raise ValueError("At least one customer is required")
+        if seed is not None and not 1 <= seed < self.MODLUS:
+            raise ValueError(f"Seed must be between 1 and {self.MODLUS - 1}")
         self.mean_interarrival = mean_interarrival
         self.mean_service = mean_service
         self.num_delays_required = num_delays_required
@@ -42,6 +48,8 @@ class SingleServerQueue:
                      1923011392, 1433700034, 1244184613, 1147297105, 539712780, 1545929719,
                      190641742, 1645390429, 264907697, 620389253, 1502074852, 927711160,
                      364849192, 2049576050, 638580085, 547070247]
+        if seed is not None:
+            self.zrng[1] = seed
         self.num_events = 2
         self.initialize()
 
@@ -82,8 +90,7 @@ class SingleServerQueue:
                 self.next_event_type = i
 
         if self.next_event_type == 0:
-            print(f"Event list empty at time {self.sim_time}")
-            exit(1)
+            raise RuntimeError(f"Event list empty at time {self.sim_time}")
 
         self.sim_time = min_time_next_event
 
@@ -94,8 +101,7 @@ class SingleServerQueue:
             self.num_in_q += 1
 
             if self.num_in_q > self.Q_LIMIT:
-                print(f"\nOverflow of the array time_arrival at time {self.sim_time}")
-                exit(1)
+                raise OverflowError(f"Queue limit of {self.Q_LIMIT} exceeded at time {self.sim_time}")
 
             self.time_arrival[self.num_in_q] = self.sim_time
         else:
@@ -139,7 +145,7 @@ class SingleServerQueue:
         print(f"Server utilization {server_utilization:.3f}")
         print(f"Time simulation ended {self.sim_time:.3f} minutes")
 
-    def run_simulation(self):
+    def run_simulation(self, verbose=True):
         while self.num_custs_delayed < self.num_delays_required:
             self.timing()
             self.update_time_avg_stats()
@@ -149,17 +155,27 @@ class SingleServerQueue:
             elif self.next_event_type == 2:
                 self.depart()
 
-        self.report()
+        if verbose:
+            self.report()
+        return {
+            "average_queue_delay": self.total_of_delays / self.num_custs_delayed,
+            "average_queue_length": self.area_num_in_q / self.sim_time,
+            "utilization": self.area_server_status / self.sim_time,
+            "end_time": self.sim_time,
+        }
 
 
 def main():
-    mean_interarrival = 1.0  # Mean interarrival time in minutes
-    mean_service = 0.5  # Mean service time in minutes
-    num_delays_required = 1000  # Number of customers
-
-    ssq = SingleServerQueue(mean_interarrival, mean_service, num_delays_required)
+    parser = argparse.ArgumentParser(description="Simulate a single-server M/M/1 queue")
+    parser.add_argument("--interarrival", type=float, default=1.0, help="mean time between arrivals")
+    parser.add_argument("--service", type=float, default=0.5, help="mean service time")
+    parser.add_argument("--customers", type=int, default=1000, help="customers whose queue delays are measured")
+    parser.add_argument("--seed", type=int, default=1973272912, help="integer RNG seed")
+    args = parser.parse_args()
+    ssq = SingleServerQueue(args.interarrival, args.service, args.customers, seed=args.seed)
     ssq.run_simulation()
 
 
 if __name__ == "__main__":
     main()
+
